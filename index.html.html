@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classic Addition Game with High Scores</title>
+    <style>
+/* Base styles */
+body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Modern font stack */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    flex-direction: column;
+    transition: background-color 0.5s ease, color 0.5s ease;
+    overflow: hidden; /* Prevent body scroll */
+}
+
+/* Dark mode styles (Default) */
+body.dark-mode {
+    background-color: #0d1117; /* GitHub Dark Mode bg */
+    color: #e6edf3;
+}
+
+/* Light mode styles */
+body.light-mode {
+    background-color: #ffffff;
+    color: #24292f;
+}
+
+/* Dimmed state for when settings are open */
+body.dimmed {
+    /* pointer-events handled by overlay now */
+}
+
+/* Overlay when settings are open */
+#settings-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 25; /* Between game container and settings panel */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#settings-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+
+/* Game container styles */
+.game-container {
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+    background-color: #161b22; /* Slightly lighter than body bg */
+    padding: 2em;
+    border-radius: 12px; /* Softer corners */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    position: relative;
+    transition: background-color 0.5s ease, box-shadow 0.5s ease;
+    transform: scale(1);
+    transition: transform 0.3s ease-in-out;
+}
+
+body.light-mode .game-container {
+    background-color: #fff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(27, 31, 35, 0.1);
+}
+
+.game-container.dimmed {
+    transform: scale(0.95);
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+h1 {
+    margin-top: 0;
+    font-size: 1.8em;
+    border-bottom: 2px solid;
+    padding-bottom: 0.5em;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+body.light-mode h1 { border-color: rgba(0, 0, 0, 0.1); }
+
+
+.game-header-stats, .info-bar, .game-stats-display {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1em;
+    font-size: 1em;
+    font-weight: bold;
+    color: #8b949e;
+}
+
+body.light-mode .game-header-stats, body.light-mode .info-bar, body.light-mode .game-stats-display {
+    color: #586069;
+}
+
+.game-scores {
+    margin-bottom: 2em;
+    padding: 1em;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+body.light-mode .game-scores {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+        
+        .total-container {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4da6ff; /* A vibrant blue for dark mode */
+            transition: color 0.5s ease;
+        }
+
+        /* Adjust total-container color for light mode for contrast */
+        body.light-mode .total-container {
+            color: #0066cc; /* A strong blue for light mode */
+        }
+        
+        .target-score-container {
+            font-size: 1.5em; /* Larger font size for the target */
+            font-weight: bold;
+            margin-bottom: 0.5em;
+            color: #ff9800; /* A contrasting orange for dark mode */
+            transition: color 0.5s ease;
+        }
+
+        /* Adjust target-score-container color for light mode for contrast */
+        body.light-mode .target-score-container {
+            color: #e65100; /* A dark orange for light mode */
+        }
+
+
+.total-container {
+    font-size: 2em;
+    font-weight: bold;
+    color: #4da6ff;
+    transition: color 0.5s ease;
+    margin-top: 0.5em;
+}
+        
+/* Timer display style */
+#timer-display {
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+    color: #7d8590;
+}
+        
+.numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 1.5em;
+}
+
+.number-btn {
+    background-color: #21262d;
+    border: 1px solid #30363d;
+    color: #f0f0f0;
+    border-radius: 6px;
+    padding: 15px 10px;
+    font-size: 1.3em;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.number-btn:hover {
+    transform: translateY(-2px);
+    background-color: #30363d;
+}
+
+body.light-mode .number-btn {
+    background-color: #f6f8fa;
+    border: 1px solid rgba(27, 31, 35, 0.15);
+    color: #24292f;
+    box-shadow: 0 1px 0 rgba(27, 31, 35, 0.04);
+}
+body.light-mode .number-btn:hover {
+    background-color: #eff3f6;
+}
+
+.number-btn.active {
+    background-color: #3fb950; /* GitHub green */
+    color: white;
+    border-color: #238636;
+    box-shadow: 0 0 5px rgba(63, 185, 80, 0.7);
+}
+        
+/* New fade out class for green buttons */
+.number-btn.fade-out-green {
+    transition: background-color 0.75s ease-out, border-color 0.75s ease-out, color 0.75s ease-out, transform 0.75s ease-out;
+    background-color: #21262d; /* Fades back to the default button color */
+    border-color: #30363d;
+    transform: scale(0.8); /* Shrink slightly as it fades */
+}
+body.light-mode .number-btn.fade-out-green {
+    background-color: #f6f8fa;
+    border-color: rgba(27, 31, 35, 0.15);
+}
+
+
+.toggle-state {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    font-size: 0.6em;
+    color: rgba(255, 255, 255, 0.5);
+    /* background-color: rgba(0, 0, 0, 0.5); */ /* Removed background for cleaner look */
+    padding: 2px 0px;
+    border-radius: 3px;
+}
+body.light-mode .toggle-state {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.number-btn.active .toggle-state {
+    color: white;
+}
+
+.controls {
+    margin-top: 1.5em;
+}
+
+/* General Button Styling */
+button {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+#reset-btn {
+    background-color: #f85149; /* GitHub red */
+    color: white;
+}
+#reset-btn:hover {
+    background-color: #e54b42;
+}
+
+.feedback-message {
+    margin-top: 1em;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 1em;
+    border-radius: 8px;
+    animation: fadeIn 0.5s ease forwards;
+}
+
+.success {
+    color: #3fb950;
+    background-color: rgba(63, 185, 80, 0.1);
+}
+.incorrect {
+    color: #f85149;
+    background-color: rgba(248, 81, 73, 0.1);
+}
+
+.hidden {
+    display: none;
+}
+/* Settings button */
+#settings-button {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+    z-index: 40; /* High z-index */
+    transition: opacity 0.3s ease-in-out;
+    background: none;
+    padding: 0;
+}
+        
+#settings-button.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+#settings-button img {
+    width: 100%;
+    height: 100%;
+}
+/* Invert the image color for dark mode */
+body.dark-mode #settings-button img {
+    filter: invert(80%);
+}
+body.light-mode #settings-button img {
+    filter: invert(20%);
+}
+
+
+/* Settings panel */
+#settings-panel {
+    position: fixed;
+    top: 0;
+    left: -280px; /* Wider panel */
+    width: 280px;
+    height: 100%;
+    background-color: #161b22;
+    color: white;
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
+    transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition */
+    z-index: 50; /* Highest z-index */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+body.light-mode #settings-panel {
+    background-color: #fff;
+    color: #24292f;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+#settings-panel.open {
+    left: 0;
+}
+
+#settings-panel h2 {
+    margin-top: 0;
+    padding-bottom: 1em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+body.light-mode #settings-panel h2 {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#settings-panel .setting-option {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.9em;
+}
+
+#settings-panel button {
+    background-color: #30363d;
+    border: 1px solid #8b949e;
+    color: #e6edf3;
+    padding: 6px 12px;
+}
+
+body.light-mode #settings-panel button {
+    background-color: #f6f8fa;
+    border: 1px solid rgba(27, 31, 35, 0.15);
+    color: #24292f;
+}
+
+
+#settings-panel button.active {
+    background-color: #3fb950;
+    color: white;
+    border-color: #3fb950;
+}
+
+#back-button {
+    margin-top: auto;
+    padding: 10px 20px;
+    background-color: #555;
+    color: white;
+}
+
+/* Level up overlay styles */
+#level-up-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 10;
+    border-radius: 12px;
+}
+
+#level-up-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    animation: fadeIn 0.5s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@media (max-width: 600px) {
+    .game-container {
+        padding: 1em;
+    }
+    h1 {
+        font-size: 1.5em;
+    }
+    .numbers-grid {
+        gap: 10px;
+    }
+    .number-btn {
+        font-size: 1em;
+        padding: 10px 5px;
+    }
+}
+
+    </style>
+</head>
+<body class="dark-mode">
+<button id="settings-button" aria-label="Settings">
+    <img src="settings.png" alt="Settings icon">
+</button>
+<div id="settings-overlay"></div> <!-- New overlay element -->
+
+<div id="settings-panel">
+    <h2>Settings</h2>
+    <div class="setting-option">
+        <span>Music:</span>
+        <div>
+            <button id="music-on">On</button>
+            <button id="music-off">Off</button>
+        </div>
+    </div>
+    <div class="setting-option">
+        <span>Theme:</span>
+        <div>
+            <button id="theme-dark">Dark</button>
+            <button id="theme-light">Light</button>
+        </div>
+    </div>
+    <div class="setting-option">
+        <span>Timer:</span>
+        <div>
+            <button id="timer-on">On</button>
+            <button id="timer-off">Off</button>
+        </div>
+    </div>
+    <div class="setting-option">
+        <span>Levels Mode:</span>
+        <div>
+            <button id="inf-levels-on">Inf</button>
+            <button id="inf-levels-off">10</button>
+        </div>
+    </div>
+     <!-- New Hard Mode Setting Option -->
+    <div class="setting-option">
+        <span>Difficulty:</span>
+        <div>
+            <button id="difficulty-easy">Easy</button>
+            <button id="difficulty-hard">Hard</button>
+        </div>
+    </div>
+    <!-- End New Setting Option -->
+
+    <button id="back-button">Back</button>
+</div>
+
+<!-- Add "dimmed" class dynamically via JS instead of statically -->
+<div class="game-container"> 
+    <h1>Classic Addition Game</h1>
+    <div id="timer-display">00:00:00.000</div>
+    
+    <div class="info-bar">
+        <span>Level: <span id="level">1</span></span>
+        <span id="most-levels-display">Most Levels: <span id="most-level">0</span></span>
+    </div>
+    
+    <div class="game-header-stats">
+        <div class="current-score-container">
+            Current Score: <span id="current-score">0</span>
+        </div>
+        <span>Most Score: <span id="most-score">0</span></span>
+    </div>
+    
+    <div class="game-scores">
+        <div class="target-score-container">
+            Target: <span id="target-sum">0</span>
+        </div>
+        <div class="total-container">
+            Total: <span id="current-sum">0</span>
+        </div>
+    </div>
+    
+    <!-- Wins and Best Time Display Container -->
+    <div id="inf-level-stats" class="game-stats-display">
+        <span>Wins: <span id="wins">0</span></span>
+        <span>Best Time: <span id="best-time">00:00:00.000</span></span>
+    </div>
+    <!-- END NEW -->
+    <div class="numbers-grid" id="numbers-grid">
+        <!-- Number buttons will be dynamically added here -->
+    </div>
+    <div class="controls">
+        <button id="reset-btn">Reset</button>
+    </div>
+    <p class="feedback-message hidden" id="feedback-message"></p>
+
+    <!-- Level-up overlay -->
+    <div id="level-up-overlay">
+        <img src="level-up.png" alt="Level Up!" style="max-width: 80%; height: auto;">
+        <!-- Add a text element to show specific win messages -->
+        <p id="overlay-message" style="color: white; margin-top: 1em; font-size: 1.2em;"></p>
+    </div>
+</div>
+
+
+    <audio id="background-music" loop>
+        <source src="background_music.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const numbersGrid = document.getElementById('numbers-grid');
+            const currentSumElement = document.getElementById('current-sum');
+            const targetSumElement = document.getElementById('target-sum');
+            const levelElement = document.getElementById('level');
+            const mostLevelElement = document.getElementById('most-level');
+            const mostLevelsDisplay = document.getElementById('most-levels-display');
+            const currentScoreElement = document.getElementById('current-score');
+            const mostScoreElement = document.getElementById('most-score');
+            const feedbackMessage = document.getElementById('feedback-message');
+            const resetButton = document.getElementById('reset-btn');
+            const levelUpOverlay = document.getElementById('level-up-overlay');
+            const settingsButton = document.getElementById('settings-button');
+            const settingsPanel = document.getElementById('settings-panel');
+            const backButton = document.getElementById('back-button');
+            const musicOnButton = document.getElementById('music-on');
+            const musicOffButton = document.getElementById('music-off');
+            const themeDarkButton = document.getElementById('theme-dark');
+            const themeLightButton = document.getElementById('theme-light');
+            const timerOnButton = document.getElementById('timer-on');
+            const timerOffButton = document.getElementById('timer-off');
+            const infLevelsOnButton = document.getElementById('inf-levels-on');
+            const infLevelsOffButton = document.getElementById('inf-levels-off');
+            const timerDisplay = document.getElementById('timer-display');
+            const backgroundMusic = document.getElementById('background-music');
+            // New Difficulty Buttons
+            const difficultyEasyButton = document.getElementById('difficulty-easy');
+            const difficultyHardButton = document.getElementById('difficulty-hard');
+
+            // Wins and Best Time Elements
+            const winsElement = document.getElementById('wins');
+            const bestTimeElement = document.getElementById('best-time');
+            const infLevelStats = document.getElementById('inf-level-stats');
+
+            let totalSum = 0;
+            let targetSum = 0;
+            let currentLevel = 1;
+            let currentScore = 0;
+            let timerFrame;
+            let startTime;
+            let timerActive = false; // Default: Timer OFF
+            let gameStarted = false;
+            let infLevelsActive = true; // Default: Infinite Levels ON
+            let isHardMode = false; // Default: Easy Mode (set by loadSettings)
+            let gameWins = 0;
+            let bestTime = Infinity;
+            let numberValues = [];
+            let currentRunTime = 0; // Cumulative time for the 10-level run
+            let isTenLevelRun = false; // Tracks if it's a 10-level game
+            
+            // Add a helper function to get the current mode key suffix
+            function getModeKey() {
+                return isHardMode ? 'Hard' : 'Easy';
+            }
+
+            // --- High Score Functions ---
+            function loadHighScores() {
+                // Use the mode-specific key for loading
+                const modeKey = getModeKey();
+                const storedMostLevel = localStorage.getItem('mostLevel' + modeKey);
+                const storedMostScore = localStorage.getItem('mostScore' + modeKey);
+                const storedWins = localStorage.getItem('wins' + modeKey);
+                const storedBestTime = localStorage.getItem('bestTime' + modeKey);
+
+                if (storedMostLevel) {
+                    mostLevelElement.textContent = storedMostLevel;
+                } else {
+                    mostLevelElement.textContent = 0; // Default to 0 if no score saved
+                }
+                if (storedMostScore) {
+                    mostScoreElement.textContent = storedMostScore;
+                } else {
+                    mostScoreElement.textContent = 0; // Default to 0
+                }
+                if (storedWins) {
+                    gameWins = parseInt(storedWins, 10);
+                    winsElement.textContent = gameWins;
+                } else {
+                    gameWins = 0; // Default to 0
+                    winsElement.textContent = 0;
+                }
+                if (storedBestTime && storedBestTime !== 'Infinity') {
+                    bestTime = parseFloat(storedBestTime);
+                    bestTimeElement.textContent = formatTime(bestTime);
+                } else {
+                    bestTime = Infinity; // Default to Infinity
+                    bestTimeElement.textContent = formatTime(0); // Display 00:00:00.000 initially
+                }
+            }
+
+            // --- Timer Functions ---
+            function startTimer() {
+                if (timerActive) {
+                    startTime = performance.now();
+                    function updateTimer() {
+                        const elapsedTime = performance.now() - startTime;
+                        timerDisplay.textContent = formatTime(currentRunTime + elapsedTime);
+                        timerFrame = requestAnimationFrame(updateTimer);
+                    }
+                    timerFrame = requestAnimationFrame(updateTimer);
+                }
+            }
+            function stopTimer() {
+                cancelAnimationFrame(timerFrame);
+            }
+            
+            function resetAndStartTimer() {
+                stopTimer();
+                timerDisplay.textContent = '00:00:00.000';
+                gameStarted = false; // Reset gameStarted flag
+            }
+
+            function formatTime(milliseconds) {
+                const hours = Math.floor(milliseconds / 3600000);
+                const minutes = Math.floor((milliseconds % 3600000) / 60000);
+                const seconds = Math.floor((milliseconds % 60000) / 1000);
+                const ms = Math.floor(milliseconds % 1000);
+                return `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}.${padZero(ms, 3)}`;
+            }
+
+            function padZero(number, length = 2) {
+                return number.toString().padStart(length, '0');
+            }
+
+            // --- Game Logic Functions ---
+            function generateNumbers() {
+                if (isHardMode) {
+                    // Hard mode: larger numbers, specifically defined set
+                    numberValues = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]; 
+                } else {
+                    // Easy mode: smaller, fixed set of numbers
+                    numberValues = [1, 2, 4, 8, 16, 32, 64, 128, 256];
+                }
+            }
+
+            function generateTargetSum() {
+                let tempValues = [...numberValues];
+                let possibleSum = 0;
+                // Use a different range for the count of numbers used based on mode
+                let minCount = isHardMode ? 3 : 1;
+                let maxCount = isHardMode ? 8 : numberValues.length - 1;
+
+                let usedValuesCount = Math.floor(Math.random() * (maxCount - minCount + 1)) + minCount;
+                
+                for (let i = 0; i < usedValuesCount; i++) {
+                    const randomIndex = Math.floor(Math.random() * tempValues.length);
+                    const randomValue = tempValues.splice(randomIndex, 1);
+                    possibleSum += parseInt(randomValue, 10);
+                }
+
+                if (possibleSum === 0) {
+                    const randomValue = numberValues[Math.floor(Math.random() * numberValues.length)];
+                    possibleSum = randomValue;
+                }
+
+                targetSum = possibleSum;
+                targetSumElement.textContent = targetSum;
+                createNumberButtons(numberValues);
+            }
+
+            function handleButtonClick(event) {
+                const button = event.currentTarget;
+                const value = parseInt(button.dataset.value, 10);
+                const toggleStateSpan = button.querySelector('.toggle-state');
+
+                if (!gameStarted) {
+                    startTimer();
+                    gameStarted = true;
+                }
+                if (isNaN(totalSum) || totalSum === null) {
+                    totalSum = 0;
+                }
+
+                if (button.classList.contains('active')) {
+                    if (totalSum - value >= 0) {
+                        totalSum -= value;
+                        button.classList.remove('active');
+                        toggleStateSpan.textContent = '0';
+                    }
+                } else {
+                    totalSum += value;
+                    button.classList.add('active');
+                    toggleStateSpan.textContent = '1';
+                }
+
+                currentSumElement.textContent = totalSum;
+                checkWinCondition();
+            }
+
+            function checkWinCondition() {
+                if (totalSum === targetSum) {
+                    currentScore += 10;
+                    currentScoreElement.textContent = currentScore;
+                    updateMostScore();
+                    
+                    currentRunTime += performance.now() - startTime; // Add elapsed time to cumulative total
+                    stopTimer(); // Stop timer to calculate time
+
+                    if (isTenLevelRun) {
+                        if (currentLevel < 10) {
+                            showLevelUpOverlay();
+                        } else {
+                            updateBestTime();
+                            showEndGameMessage();
+                        }
+                    } else {
+                        updateMostLevel();
+                        showLevelUpOverlay();
+                    }
+                }
+            }
+
+            function updateBestTime() {
+                const modeKey = getModeKey();
+                if (currentRunTime < bestTime) {
+                    bestTime = currentRunTime;
+                    localStorage.setItem('bestTime' + modeKey, bestTime);
+                    bestTimeElement.textContent = formatTime(bestTime);
+                }
+                gameWins++;
+                localStorage.setItem('wins' + modeKey, gameWins);
+                winsElement.textContent = gameWins;
+            }
+
+            function updateMostScore() {
+                const modeKey = getModeKey();
+                const mostScore = parseInt(mostScoreElement.textContent, 10);
+                if (currentScore > mostScore) {
+                    mostScoreElement.textContent = currentScore;
+                    localStorage.setItem('mostScore' + modeKey, currentScore);
+                }
+            }
+
+            function updateMostLevel() {
+                const modeKey = getModeKey();
+                if (infLevelsActive) {
+                    const mostLevel = parseInt(mostLevelElement.textContent, 10);
+                    if (currentLevel > mostLevel) {
+                        mostLevelElement.textContent = currentLevel;
+                        localStorage.setItem('mostLevel' + modeKey, currentLevel);
+                    }
+                }
+            }
+
+            function showEndGameMessage() {
+                const finalTime = formatTime(currentRunTime);
+                const modeText = isHardMode ? 'Hard' : 'Easy';
+                const message = `You completed all 10 levels on ${modeText} mode! Your time: ${finalTime}`;
+                showFeedback('success', message);
+            }
+
+            function showLevelUpOverlay() {
+                const buttons = document.querySelectorAll('.number-btn.active');
+                buttons.forEach(button => {
+                    button.classList.add('fade-out-green');
+                });
+                levelUpOverlay.classList.add('visible');
+
+                setTimeout(() => {
+                    resetGameVariables();
+                }, 750);
+
+                setTimeout(() => {
+                    levelUpOverlay.style.animation = 'fadeOut 0.5s ease-in-out forwards';
+                    setTimeout(() => {
+                        levelUpOverlay.classList.remove('visible');
+                        levelUpOverlay.style.animation = '';
+                    }, 500);
+                }, 1500);
+            }
+            function showFeedback(type, message) {
+                feedbackMessage.textContent = message;
+                feedbackMessage.className = `feedback-message ${type}`;
+                feedbackMessage.classList.remove('hidden');
+            }
+
+            function createNumberButtons(values) {
+                numbersGrid.innerHTML = '';
+                values.forEach(value => {
+                    const button = document.createElement('button');
+                    button.classList.add('number-btn');
+                    button.dataset.value = value;
+                    button.innerHTML = `${value}<span class="toggle-state">0</span>`; 
+                    button.addEventListener('click', handleButtonClick);
+                    numbersGrid.appendChild(button);
+                });
+            }
+
+            function resetGameVariables() {
+                totalSum = 0;
+                currentSumElement.textContent = 0;
+                feedbackMessage.classList.add('hidden');
+
+                if (isTenLevelRun && currentLevel >= 10) {
+                    // Game over in 10-level mode, don't reset variables here.
+                } else {
+                    currentLevel++;
+                    levelElement.textContent = currentLevel;
+                    document.querySelectorAll('.number-btn').forEach(button => {
+                        button.classList.remove('active');
+                        button.classList.remove('fade-out-green');
+                        button.querySelector('.toggle-state').textContent = '0';
+                    });
+                    generateNumbers(); // Re-generate numbers for the new level
+                    generateTargetSum();
+                    if (timerActive) {
+                        // Restart the timer only if in INF mode
+                        startTimer();
+                        gameStarted = true;
+                    }
+                }
+            }
+
+            function resetGame() {
+                totalSum = 0;
+                currentSumElement.textContent = 0;
+                currentLevel = 1;
+                levelElement.textContent = currentLevel;
+                currentScore = 0;
+                currentScoreElement.textContent = currentScore;
+                feedbackMessage.classList.add('hidden');
+                currentRunTime = 0;
+                gameStarted = false;
+                
+                generateNumbers(); 
+                generateTargetSum();
+                
+                if (timerActive) {
+                    stopTimer();
+                    timerDisplay.textContent = '00:00:00.000';
+                }
+                
+                document.querySelectorAll('.number-btn').forEach(button => {
+                    button.classList.remove('active');
+                    button.classList.remove('fade-out-green');
+                    button.querySelector('.toggle-state').textContent = '0';
+                });
+
+                loadHighScores(); // Load the correct high scores for the current mode after a reset
+            }
+
+            // --- Settings Functions ---
+            function saveSettings() {
+                localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+                localStorage.setItem('music', backgroundMusic.paused ? 'off' : 'on');
+                localStorage.setItem('timer', timerActive ? 'on' : 'off');
+                localStorage.setItem('infLevels', infLevelsActive ? 'on' : 'off');
+                localStorage.setItem('gameMode', isHardMode ? 'hard' : 'easy'); // Save difficulty
+            }
+
+            function applySettings(theme, music, timer, infLevels, gameMode) {
+                // Apply Theme
+                if (theme !== null) {
+                    if (theme === 'light') {
+                        document.body.classList.remove('dark-mode');
+                        document.body.classList.add('light-mode');
+                        themeLightButton.classList.add('active');
+                        themeDarkButton.classList.remove('active');
+                    } else {
+                        document.body.classList.remove('light-mode');
+                        document.body.classList.add('dark-mode');
+                        themeDarkButton.classList.add('active');
+                        themeLightButton.classList.remove('active');
+                    }
+                }
+
+                // Apply Music
+                if (music !== null) {
+                    if (music === 'on') {
+                        backgroundMusic.play();
+                        musicOnButton.classList.add('active');
+                        musicOffButton.classList.remove('active');
+                    } else {
+                        backgroundMusic.pause();
+                        musicOffButton.classList.add('active');
+                        musicOnButton.classList.remove('active');
+                    }
+                }
+
+                // Apply Timer
+                const wasTimerActive = timerActive;
+                if (timer !== null) {
+                    timerActive = (timer === 'on');
+                    if (timerActive) {
+                        timerOnButton.classList.add('active');
+                        timerOffButton.classList.remove('active');
+                        timerDisplay.style.display = '';
+                    } else {
+                        timerOffButton.classList.add('active');
+                        timerOnButton.classList.remove('active');
+                        timerDisplay.style.display = 'none';
+                        stopTimer();
+                    }
+                }
+                
+                // Apply Inf Levels
+                const wasInfLevelsActive = infLevelsActive;
+                if (infLevels !== null) {
+                    infLevelsActive = (infLevels === 'on');
+                    if (infLevelsActive) {
+                        infLevelsOnButton.classList.add('active');
+                        infLevelsOffButton.classList.remove('active');
+                        mostLevelsDisplay.style.display = '';
+                        infLevelStats.style.display = 'none';
+                        isTenLevelRun = false;
+                    } else {
+                        infLevelsOffButton.classList.add('active');
+                        infLevelsOnButton.classList.remove('active');
+                        mostLevelsDisplay.style.display = 'none';
+                        infLevelStats.style.display = 'grid';
+                        isTenLevelRun = true;
+                    }
+                }
+                
+                // Apply Game Mode (Difficulty)
+                const wasHardMode = isHardMode;
+                if (gameMode !== null) {
+                    isHardMode = (gameMode === 'hard');
+                    if (isHardMode) {
+                        difficultyHardButton.classList.add('active');
+                        difficultyEasyButton.classList.remove('active');
+                    } else {
+                        difficultyEasyButton.classList.add('active');
+                        difficultyHardButton.classList.remove('active');
+                    }
+                }
+
+                // Reset the game only if a mode has changed
+                if ((timerActive !== wasTimerActive) || (infLevelsActive !== wasInfLevelsActive) || (isHardMode !== wasHardMode)) {
+                    resetGame();
+                } else if (gameMode !== null) {
+                    // If the mode was set explicitly but didn't change 'isHardMode', reload scores anyway (e.g. on page load)
+                    loadHighScores(); 
+                }
+            }
+
+            function loadSettings() {
+                const savedTheme = localStorage.getItem('theme') || 'dark';
+                const savedMusic = localStorage.getItem('music') || 'on';
+                const savedTimer = localStorage.getItem('timer') || 'off';
+                const savedInfLevels = localStorage.getItem('infLevels') || 'on';
+                const savedGameMode = localStorage.getItem('gameMode') || 'easy'; // Load difficulty
+
+                applySettings(savedTheme, savedMusic, savedTimer, savedInfLevels, savedGameMode);
+            }
+
+            // --- Event Listeners ---
+            resetButton.addEventListener('click', resetGame);
+            settingsButton.addEventListener('click', () => {
+                settingsPanel.classList.add('open');
+                document.body.classList.add('dimmed');
+            });
+            backButton.addEventListener('click', () => {
+                settingsPanel.classList.remove('open');
+                document.body.classList.remove('dimmed');
+                saveSettings(); // Save settings when closing the panel
+            });
+
+            musicOnButton.addEventListener('click', () => applySettings(null, 'on', null, null, null));
+            musicOffButton.addEventListener('click', () => applySettings(null, 'off', null, null, null));
+            themeDarkButton.addEventListener('click', () => applySettings('dark', null, null, null, null));
+            themeLightButton.addEventListener('click', () => applySettings('light', null, null, null, null));
+            timerOnButton.addEventListener('click', () => applySettings(null, null, 'on', null, null));
+            timerOffButton.addEventListener('click', () => applySettings(null, null, 'off', null, null));
+            infLevelsOnButton.addEventListener('click', () => applySettings(null, null, null, 'on', null));
+            infLevelsOffButton.addEventListener('click', () => applySettings(null, null, null, 'off', null));
+            // Difficulty Listeners
+            difficultyEasyButton.addEventListener('click', () => applySettings(null, null, null, null, 'easy'));
+            difficultyHardButton.addEventListener('click', () => applySettings(null, null, null, null, 'hard'));
+
+            // Initial setup
+            loadSettings();
+            generateNumbers(); // Ensure numbers are generated correctly on load based on default/saved settings
+            generateTargetSum();
+        });
+    </script>
+</body>
+</html>
